@@ -7,7 +7,7 @@ import json
 app = FastAPI()
 
 # ----------------------------
-# 1. Utilidades y Configuración (Traídas de tu script)
+# 1. Utilidades y Configuración
 # ----------------------------
 
 def detect_unit_multiplier(text):
@@ -33,8 +33,9 @@ def clean_number_str(s):
     
     s = s.replace("$", "").replace("%", "").replace("—", "").replace("–", "").replace("−", "-")
     s = re.sub(r"[A-Za-z]", "", s)
+    # Mantenemos solo dígitos, puntos, comas y guiones
     s = re.sub(r"[^0-9\-,.\-]", "", s)
-    s = s.replace(",", "")
+    s = s.replace(",", "") # Quitamos comas para convertir a float
     s = s.replace(" ", "")
     
     if s == "":
@@ -45,19 +46,19 @@ def clean_number_str(s):
             val = -abs(val)
         return val
     except:
-        m = re.search(r"-?\d+(\.\d+)?", s)
-        if m:
-            try:
-                val = float(m.group(0))
-                if negative:
-                    val = -abs(val)
-                return val
-            except:
-                return None
-    return None
+        return None
 
 def find_value_after_label(text, label_patterns, multiplier=1.0, prefer_first=True):
-    """Busca valores en el texto basándose en patrones regex."""
+    """
+    Busca valores en el texto basándose en patrones regex.
+    CORRECCIÓN: Se usa una regex estricta que no admite espacios como separadores de miles.
+    """
+    # Regex estricta: 
+    # 1. (?:,\d{3})+  -> Admite números con formato coma (ej: 1,000)
+    # 2. |\d+         -> O admite números planos (ej: 1000)
+    # 3. NO admite espacios intermedios (\s) para evitar fusionar columnas.
+    regex_numero = r"\(?-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\)?"
+
     for pattern in label_patterns:
         regex = re.compile(pattern, flags=re.IGNORECASE)
         matches = list(regex.finditer(text))
@@ -66,8 +67,10 @@ def find_value_after_label(text, label_patterns, multiplier=1.0, prefer_first=Tr
         
         for m in matches if prefer_first else reversed(matches):
             start = m.start()
+            # Buscamos en los siguientes 400 caracteres
             snippet = text[start : start + 400]
-            num_match = re.search(r"\(?\d{1,3}(?:[,\.\s]\d{3})*(?:\.\d+)?\)?", snippet)
+            
+            num_match = re.search(regex_numero, snippet)
             
             if num_match:
                 raw = num_match.group(0)
@@ -75,12 +78,13 @@ def find_value_after_label(text, label_patterns, multiplier=1.0, prefer_first=Tr
                 if val is not None:
                     return val * multiplier
             
-            # Búsqueda en la línea completa (fallback)
+            # Búsqueda en la línea completa (fallback) si no se halló a la derecha inmediata
             line_start = text.rfind("\n", 0, start) + 1
             line_end = text.find("\n", start)
             line_end = len(text) if line_end == -1 else line_end
             line = text[line_start:line_end]
-            num_match2 = re.search(r"\(?-?\d{1,3}(?:[,\.\s]\d{3})*(?:\.\d+)?\)?", line)
+            
+            num_match2 = re.search(regex_numero, line)
             
             if num_match2:
                 val = clean_number_str(num_match2.group(0))
@@ -138,7 +142,7 @@ def process_pdf_content(pdf_bytes):
             if t:
                 text += t + "\n"
     
-    # 3.2 Lógica de Normalización (Tu código original)
+    # 3.2 Lógica de Normalización
     multiplier = detect_unit_multiplier(text)
     
     def get_val(patterns, default=0):
@@ -321,13 +325,8 @@ async def extract_financial_data(file: UploadFile = File(...)):
     Endpoint conectado a n8n. Recibe PDF binario, devuelve JSON estructurado.
     """
     try:
-        # 1. Leer el contenido binario del UploadFile
         pdf_content = await file.read()
-        
-        # 2. Procesar el contenido (en memoria)
         result_json = process_pdf_content(pdf_content)
-        
-        # 3. Devolver JSON
         return result_json
         
     except Exception as e:
