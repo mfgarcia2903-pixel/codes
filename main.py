@@ -83,9 +83,16 @@ pasivo_patterns = {
     "proveedores": [r"Cuentas por pagar a proveedores", r"Proveedores"],
     "impuestos_por_pagar": [r"Impuestos por pagar"],
     "pasivo_financiero_cp": [r"Préstamos", r"Préstamos y arrendamiento financiero, neto"],
-    "pasivo_financiero_lp": [r"Préstamos 3 94,266", r"Préstamos 394,266", r"Deuda financiera"]
+    "pasivo_financiero_lp": [r"Préstamos 3 94,266", r"Préstamos 394,266", r"Deuda financiera"],
+    "total_pasivo_no_circulante" [r"Total de pasivo no circulante", r"Total pasivos no corrientes"],
+    "total_pasivo_circulante": [r"Total de pasivo circulante", r"Total pasivos corrientes"],
+    "total_pasivo": [r"Total de pasivo", r"Total Pasivos"]
 }
-
+er_patterns = {
+    "ventas": [r"Ingresos Totales", r"Ventas netas", r"Ingresos por ventas"],
+    "costo_de_ventas": [r"Costo de ventas", r"Costo de lo vendido", r"Gastos de Operación"], # Ajustar según sector
+    "utilidad_neta": [r"Utilidad del ejercicio", r"Utilidad neta", r"Resultado del Ejercicio", r"Utilidad \(pérdida\) neta"]
+}
 # --- 3. LÓGICA DE EXTRACCIÓN (OPTIMIZADA CON PYMUPDF) ---
 
 def process_pdf_bytes(file_bytes):
@@ -132,59 +139,55 @@ def process_pdf_bytes(file_bytes):
     utilidad_bruta = int(ventas) - int(costo_ventas)
 
     return {
-        "Grupo Sports World, S.A.B. de C.V.": {
-            "periodos": {
-                "30-06-2024": {
-                    "Balance General": {
-                        "activo_total": {
-                            "activo_circulante": {
-                                "caja_y_bancos": int(caja),
-                                "clientes": int(clientes),
-                                "inventario": int(inventario),
-                                "impuestos_a_favor": int(impuestos_favor),
-                                "total_activo_circulante": int(total_activo_circ)
-                            },
-                            "activo_fijo": {
-                                "total_activo_fijo": int(total_activo_fijo)
-                            },
-                            "total_activo": int(total_activo)
-                        },
-                        "pasivo_total": {
-                            "pasivo_corto_plazo": {
-                                "proveedores": int(proveedores),
-                                "impuestos_por_pagar": int(impuestos_pagar),
-                                "pasivo_financiero_cp": int(pasivo_cp),
-                                "total_pasivo_corto_plazo": int(total_pasivo_circ)
-                            },
-                            "pasivo_largo_plazo": {
-                                "pasivo_financiero_lp": int(pasivo_lp),
-                                "total_pasivo_no_circulante": int(total_pasivo_no_circ)
-                            },
-                            "total_pasivo": int(total_pasivo)
-                        },
-                        "capital_contable": {
-                            "capital_social": int(capital_social),
-                            "utilidades_retenidas_o_acumuladas": int(util_retenidas_adj),
-                            "utilidad_del_ejercicio": int(utilidad_neta),
-                            "total_capital": int(capital_social + util_retenidas_adj + utilidad_neta) 
-                        }
-                    },
-                    "Estado de Resultados": {
-                        "ventas": int(ventas),
-                        "costo_de_ventas": int(costo_ventas),
-                        "utilidad_bruta": int(utilidad_bruta),
-                        "utilidad_neta": int(utilidad_neta)
-                    }
-                }
+        "Balance General": {
+            "activo_total": {
+                "activo_circulante": {
+                    "caja_y_bancos": int(caja),
+                    "clientes": int(clientes),
+                    "inventario": int(inventario),
+                    "impuestos_a_favor": int(impuestos_favor),
+                    "total_activo_circulante": int(total_activo_circ)
+                },
+                "activo_fijo": {
+                    "total_activo_fijo": int(total_activo_fijo)
+                },
+                "total_activo": int(total_activo)
+            },
+            "pasivo_total": {
+                "pasivo_corto_plazo": {
+                    "proveedores": int(proveedores),
+                    "impuestos_por_pagar": int(impuestos_pagar),
+                    "pasivo_financiero_cp": int(pasivo_cp),
+                    "total_pasivo_corto_plazo": int(total_pasivo_circ)
+                },
+                "pasivo_largo_plazo": {
+                    "pasivo_financiero_lp": int(pasivo_lp),
+                    "total_pasivo_no_circulante": int(total_pasivo_no_circ)
+                },
+                "total_pasivo": int(total_pasivo)
+            },
+            "capital_contable": {
+                "capital_social": int(capital_social),
+                "utilidades_retenidas_o_acumuladas": int(util_retenidas_adj),
+                "utilidad_del_ejercicio": int(utilidad_neta),
+                "total_capital": int(capital_social + util_retenidas_adj + utilidad_neta) 
             }
+        },
+        "Estado de Resultados": {
+            "ventas": int(ventas),
+            "costo_de_ventas": int(costo_ventas),
+            "utilidad_bruta": int(utilidad_bruta),
+            "utilidad_neta": int(utilidad_neta)
         }
     }
+}
+
 
 # --- 4. ENDPOINTS ---
 
 @app.get("/")
 def home():
-    return {"status": "online", "message": "Extractor Financiero v3 (Light)"}
+    return {"status": "online", "message": "API Extracción Financiera Genérica v4"}
 
 @app.post("/extract-financial")
 async def extract_text(file: UploadFile = File(...)):
